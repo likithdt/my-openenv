@@ -1,69 +1,59 @@
 import pandas as pd
 import numpy as np
-from openenv.core.env_server import Environment
-from .models import DataObservation, CleanAction, DataState 
+from openenv_core.env_server import Env
+from server.models import CleanAction, DataObservation, DataState
 
-class DataCleaningEnv(Environment):
-    def __init__(self):
-        # Mandatory call to parent
+class DataCleaningEnv(Env):
+    def __init__(self, df=None):
         super().__init__()
-        # Manually set the attribute the error is complaining about
-        self.episode_id = "integrity-lab-v1"
+        # If no DF is provided (startup), we use a messy default
+        if df is None:
+            self.initial_df = pd.DataFrame({
+                'id': [101, 102, 102, 104],
+                'value': [10.5, 20.0, 20.0, np.nan],
+                'category': ['A', 'B', 'B', None]
+            })
+        else:
+            self.initial_df = df.copy()
+            
+        self.df = self.initial_df.copy()
+        self.step_count = 0
+
+    def calculate_integrity(self):
+        """The 'Finalist' Secret Sauce: A universal quality metric."""
+        if self.df.empty: return 0.0
         
-        data = {
-            'id': [1, 2, 3, 4, 1],
-            'name': ['Likith', 'Arjun', 'Sneha', 'Rahul', 'Likith'],
-            'age': [21, 22, 25, 23, 21],
-            'salary': [50000, 60000, 55000, 70000, 50000]
-        }
-        self.original_df = pd.DataFrame(data)
-        self.df = self.original_df.copy()
-        self.current_task = 0
-        self.step_count = 0
-
-    def state(self) -> DataState:
-        return DataState(current_task_index=self.current_task, steps_taken=self.step_count)
-
-    def reset(self) -> DataObservation:
-        self.df = self.original_df.copy()
-        self.current_task = 0
-        self.step_count = 0
-        return self._get_observation("Task 1: Remove duplicates.")
+        # 1. Uniqueness (1.0 if no duplicates)
+        u = 1.0 - (self.df.duplicated().sum() / len(self.df))
+        
+        # 2. Completeness (1.0 if no missing values)
+        total_cells = self.df.size
+        c = 1.0 - (self.df.isnull().sum().sum() / total_cells) if total_cells > 0 else 1.0
+        
+        # Integrity Index is the product of Uniqueness and Completeness
+        return round(u * c, 4)
 
     def step(self, action: CleanAction):
-        try:
-            self.step_count += 1
-            reward = 0.0
-            done = False
-            
-            # Logic for Task 0
-            if getattr(self, 'current_task', 0) == 0 and action.command == "drop_duplicates":
-                before = len(self.df)
-                self.df = self.df.drop_duplicates()
-                if len(self.df) < before:
-                    reward = 1.0
-                    self.current_task = 1
-            
-            # Default return if no specific task logic matches
-            return {
-                "observation": self._get_observation("Next Task: Fill missing values in Age"),
-                "reward": reward,
-                "done": done,
-                "info": {"task": getattr(self, 'current_task', 0)}
-            }
-        except Exception as e:
-            # This helps you see the error in the logs more clearly
-            print(f"Error in step: {e}")
-            raise e
-
-    def _get_observation(self, goal: str) -> DataObservation:
-        # Crucial: Convert numpy types to native Python types for JSON
-        null_counts = self.df.isnull().sum().to_dict()
-        clean_summary = {str(k): int(v) for k, v in null_counts.items()}
+        self.step_count += 1
+        old_idx = self.calculate_integrity()
         
-        return DataObservation(
-            summary=clean_summary,
-            sample_rows=self.df.head().to_dict('records'),
-            column_names=list(self.df.columns),
-            goal=goal
-        )
+        # Dynamic Command Logic
+        if action.command == "drop_duplicates":
+            self.df = self.df.drop_duplicates()
+        elif action.command == "fill_median":
+            num_cols = self.df.select_dtypes(include=[np.number]).columns
+            self.df[num_cols] = self.df[num_cols].fillna(self.df[num_cols].median())
+        elif action.command == "drop_nulls":
+            self.df = self.df.dropna()
+
+        new_idx = self.calculate_integrity()
+        
+        # Reward is based on how much the integrity improved
+        reward = (new_idx - old_idx) * 100 
+        
+        return {
+            "observation": self._get_observation(f"Integrity Index: {new_idx}"),
+            "reward": reward,
+            "done": new_idx >= 0.99, # Environment 'solved' when data is clean
+            "info": {"improvement": reward}
+        }
