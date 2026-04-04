@@ -1,9 +1,10 @@
 # OpenEnv Environment Manifest
 name: data-integrity-lab
-version: "0.1.0"
+version: "2.0.0"
 description: "A real-world environment for training agents to clean and format datasets using Pandas."
-entrypoint: "server.app:main"
+entrypoint: "server.app:app"
 env_type: "docker"
+web_interface: true
 
 # This tells the validator where to find your Pydantic models
 models:

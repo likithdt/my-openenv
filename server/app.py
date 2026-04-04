@@ -5,11 +5,26 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
 
-app = FastAPI(title="Data Integrity Lab - Pro Edition")
+app = FastAPI(
+    title="Data Integrity Lab",
+    docs_url="/",       # THIS IS THE TRICK: Move Swagger to the root
+    redoc_url="/redoc"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Initialize the environment globally
 env_instance = DataCleaningEnv()
 
+@app.get("/health")
+async def health():
+    return {"status": "Online", "integrity": env_instance.calculate_integrity()}
+    
 @app.get("/")
 async def root():
     """Explicitly defined root to kill the 404 error."""
@@ -41,4 +56,3 @@ async def step(action: CleanAction):
 # This is the CRITICAL part for Hugging Face
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    
