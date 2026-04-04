@@ -2,7 +2,7 @@ import uvicorn
 import pandas as pd
 import io
 from fastapi import FastAPI, UploadFile, File, HTTPException
-from server.env import DataCleaningEnv
+from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
 
 # Initialize the FastAPI app
