@@ -1,14 +1,31 @@
-name: data-integrity-lab
+name: "data-integrity-lab"
 version: "2.0.0"
-description: "A real-world environment for training agents to clean and format datasets using Pandas."
+description: "A real-world environment for training agents to clean and audit datasets using RL and LLM-based tools."
 entrypoint: "server.app:app"
 env_type: "docker"
 web_interface: true
 
+# Mapping to your Pydantic models in server/models.py
 models:
-  action: "models:CleanAction"
-  observation: "models:DataObservation"
-  state: "models:DataState"
+  action: "server.models:CleanAction"
+  observation: "server.models:DataObservation"
+  state: "server.models:DataState"
+
+# REQUIREMENT: Definition of 3 tasks for the programmatic grader
+tasks:
+  - id: "easy"
+    description: "Remove row redundancy (duplicates) from a small controlled dataset."
+    difficulty: "easy"
+    expected_score: 1.0
+  - id: "medium"
+    description: "Handle missing values (NaNs) in a dataset."
+    difficulty: "medium"
+    expected_score: 1.0
+  - id: "hard"
+    description: "Multi-step cleaning of a messy, mixed dataset."
+    difficulty: "hard"
+    expected_score: 1.0
 
 repo: "https://github.com/likith-dt/my-openenv" 
 license: "MIT"
+tags: ["data-cleaning", "data-science", "automation", "rl-environment"]

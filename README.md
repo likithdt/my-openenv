@@ -64,3 +64,34 @@ A dictionary returned after every step:
 1. **Easy**: Remove duplicates from a 3-row set.
 2. **Medium**: Handle missing values and duplicates simultaneously.
 3. **Hard**: Scaled cleaning on user-uploaded CSV data.
+
+# 📊 Data Integrity Lab (OpenEnv)
+
+## 🎯 Motivation
+Data cleaning is a manual, $100B+ problem. This environment simulates a real-world "Data Auditor" task where an AI agent must identify and fix structural issues (duplicates, nulls, outliers) to achieve 100% data integrity.
+
+## 🕹️ Spaces
+### Action Space (Discrete)
+- `drop_duplicates`: Removes redundant rows.
+- `fill_median`: Imputes missing numeric data.
+- `drop_nulls`: Removes rows with incomplete information.
+
+### Observation Space (Box/Dict)
+- `health_score`: 0.0 to 1.0 (The grader metric).
+- `summary`: Statistical distribution (Pandas describe).
+- `sample_rows`: A 5-row glimpse of the raw data.
+
+## 🏆 Baseline Scores
+| Task | Strategy | Score |
+| :--- | :--- | :--- |
+| Easy | GPT-4o (Zero-shot) | 1.0 |
+| Medium | GPT-4o (Zero-shot) | 1.0 |
+| Hard | GPT-4o (Few-shot) | 0.85 |
+
+## 🏗️ Technical Architecture
+The environment follows a **Modular Auditor Pattern**:
+1. **The Core (`gym_env.py`)**: Implements an OpenAI Gym-like interface with deterministic state resets.
+2. **The Evaluator (`calculate_integrity`)**: A programmatic grader that computes the density of duplicates and nulls as a continuous metric ($0.0 \rightarrow 1.0$).
+3. **The Interface (`app.py`)**: A FastAPI wrapper that exposes the environment via a REST API, compliant with the **OpenEnv v2.0** specification.
+4. **Reward Shaping**: Implements a dense reward function ($R_t = \Delta \text{Score} - \text{Cost}$) to incentivize both accuracy and efficiency.
+
