@@ -32,6 +32,17 @@ async def health():
         "info": "Navigate to /docs to upload and clean data."
     }
 
+@app.get("/history")
+async def get_history():
+    """
+    THE AUDIT TRAIL: Shows every cleaning step taken by the AI.
+    """
+    return {
+        "total_steps": env_instance.step_count,
+        "final_integrity": env_instance.calculate_integrity(),
+        "log": env_instance.history
+    }
+
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith('.csv'):

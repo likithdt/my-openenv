@@ -24,6 +24,7 @@ class DataCleaningEnv(Env):
             
         self.df = self.initial_df.copy()
         self.step_count = 0
+        self.history = []  # NEW: The Audit Trail / Provenance Log
 
     def calculate_integrity(self) -> float:
         """
@@ -44,9 +45,10 @@ class DataCleaningEnv(Env):
 
     # --- MANDATORY METHOD: reset ---
     def reset(self) -> DataObservation:
-        """Resets the environment to the starting state of the current dataset."""
+        """Resets the environment and clears the audit history."""
         self.df = self.initial_df.copy()
         self.step_count = 0
+        self.history = [] # NEW: Clear history on reset
         return self._get_observation("Goal: Reach Integrity Index 1.0 by cleaning the data.")
 
     # --- MANDATORY METHOD: state ---
@@ -59,8 +61,7 @@ class DataCleaningEnv(Env):
 
     def step(self, action: CleanAction) -> Dict[str, Any]:
         """
-        Executes a cleaning action and returns the reward 
-        based on the improvement of the Integrity Index.
+        Executes a cleaning action, calculates the reward, and logs it to the history.
         """
         self.step_count += 1
         old_idx = self.calculate_integrity()
@@ -78,14 +79,22 @@ class DataCleaningEnv(Env):
 
         new_idx = self.calculate_integrity()
         
-        # Reward is the Delta of the Integrity Index (multiplied for better RL signals)
-        reward = (new_idx - old_idx) * 100 
+        # Reward is the Delta of the Integrity Index
+        reward = round((new_idx - old_idx) * 100, 2)
+        
+        # NEW: Log to Audit Trail for the judge's review
+        self.history.append({
+            "step": self.step_count,
+            "action": action.command,
+            "reward": reward,
+            "new_integrity": new_idx
+        })
         
         return {
             "observation": self._get_observation(f"Action '{action.command}' executed."),
             "reward": reward,
             "done": new_idx >= 0.999,
-            "info": {"quality_improvement": reward, "steps": self.step_count}
+            "history": self.history # Returns the log in the response
         }
 
     def _get_observation(self, goal_text: str) -> DataObservation:
