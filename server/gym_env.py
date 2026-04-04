@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from openenv_core.env_server import Env
+from openenv_core.env_server import Environment as Env
 from server.models import CleanAction, DataObservation, DataState
 
 class DataCleaningEnv(Env):

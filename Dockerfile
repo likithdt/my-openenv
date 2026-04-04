@@ -2,7 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-ENV CACHE_REBOOT=5.0
+ENV CACHE_REBOOT=6.0
 
 # 1. Copy the requirements file first
 COPY requirements.txt .
