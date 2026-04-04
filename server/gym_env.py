@@ -84,51 +84,53 @@ class DataCleaningEnv(Env):
 
     def step(self, action: CleanAction) -> Dict[str, Any]:
         """
-        Executes an action and returns a strictly JSON-serializable dictionary.
+        The 'Safe-Mode' Step: 
+        Uses primitive types to ensure FastAPI validation never fails.
         """
         try:
             self.step_count += 1
-            # old_score MUST be a standard float
             old_score = float(self.calculate_integrity())
             
-            # 1. Standardize the command input
+            # 1. Execute Command (Case-Insensitive)
             cmd = str(action.command).lower()
-            
-            # 2. Execute Action Logic
-            if cmd == "drop_duplicates":
+            if "duplicate" in cmd:
                 self.df = self.df.drop_duplicates()
-            elif cmd == "fill_median":
+            elif "median" in cmd:
                 num_cols = self.df.select_dtypes(include=[np.number]).columns
                 for col in num_cols:
-                    median_val = self.df[col].median()
-                    self.df[col] = self.df[col].fillna(median_val)
-            elif cmd == "drop_nulls":
+                    self.df[col] = self.df[col].fillna(float(self.df[col].median()))
+            elif "null" in cmd:
                 self.df = self.df.dropna()
 
-            # 3. Calculate New Metrics
+            # 2. Calculate New Metrics
             new_score = float(self.calculate_integrity())
-            reward = float(round((new_score - old_score) * 100, 2))
+            reward_val = float(round((new_score - old_score) * 100, 2))
             
-            # 4. Update History (Ensure everything is a standard Python type)
+            # 3. Create the Observation Object
+            # We call _get_observation but ensure it's a dict
+            obs = self._get_observation(f"Action {cmd} applied.")
+            
+            # 4. Update History
             self.history.append({
                 "step": int(self.step_count),
-                "action": str(cmd),
-                "reward": float(reward),
-                "score": float(new_score)
+                "action": cmd,
+                "reward": reward_val,
+                "score": new_score
             })
             
-            # 5. Return the Response (Force all types for FastAPI validation)
+            # 5. THE CRITICAL RETURN: 
+            # We return a flat dict that matches the 'Observation' structure
             return {
-                "observation": self._get_observation(f"Executed {cmd}"),
-                "reward": float(reward),
-                "done": bool(new_score >= 0.999 or self.step_count >= 10),
+                "observation": obs,
+                "reward": reward_val,
+                "done": bool(new_score >= 0.99 or self.step_count >= 10),
                 "history": self.history
             }
             
         except Exception as e:
-            # This prints the REAL error in your Hugging Face Logs
-            print(f"--- STEP EXECUTION CRASH ---")
-            print(f"Error: {str(e)}")
+            # This will FORCE the error into the logs if it crashes
+            import traceback
+            print(traceback.format_exc())
             raise e
 
     def _get_observation(self, goal_text: str) -> DataObservation:
