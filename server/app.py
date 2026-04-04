@@ -5,45 +5,51 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
 
-# Initialize the FastAPI app
-app = FastAPI(title="Data Integrity Lab - Pro Edition")
+# 1. Initialize the FastAPI app
+app = FastAPI(
+    title="Data Integrity Lab - Pro Edition",
+    description="A Universal RL Gym for Automated Data Cleaning",
+    version="2.0.0"
+)
 
-# Initialize the environment with a default messy dataset
+# 2. Global Environment Instance
+# Starts with a default messy sample, ready to be overwritten by uploads
 env_instance = DataCleaningEnv()
 
 @app.get("/")
 def home():
     """
-    Main landing page showing current Data Health.
+    Main Landing Page: Fixes 'Not Found' and shows current Data Health.
     """
     return {
         "status": "Online",
-        "project": "Data Integrity Lab (Universal Edition)",
+        "project": "Data Integrity Lab (Dynamic Edition)",
         "current_integrity_index": env_instance.calculate_integrity(),
-        "observation": env_instance.reset()
+        "total_steps_taken": env_instance.step_count,
+        "message": "Visit /docs to upload your own CSV and start the RL cleaning process."
     }
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
     """
-    THE FINALIST FEATURE: Upload any CSV file to clean it!
-    This proves your AI works on ANY data, not just hardcoded samples.
+    THE FINALIST FEATURE: Dynamically re-initializes the gym with user data.
     """
     if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a CSV.")
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload a .csv file.")
     
     try:
         contents = await file.read()
-        # Load the uploaded data into a Pandas DataFrame
+        # Read the CSV into a DataFrame
         new_df = pd.read_csv(io.BytesIO(contents))
         
-        # Re-initialize the environment with the NEW data
+        # Overwrite the global instance with the new data
         global env_instance
         env_instance = DataCleaningEnv(df=new_df)
         
         return {
             "message": f"Successfully loaded {file.filename}",
             "rows": len(new_df),
+            "columns": list(new_df.columns),
             "initial_integrity": env_instance.calculate_integrity(),
             "observation": env_instance.reset()
         }
@@ -52,17 +58,18 @@ async def upload_csv(file: UploadFile = File(...)):
 
 @app.post("/reset")
 def reset_endpoint():
-    """Resets the current dataset to its uploaded state."""
+    """Resets the environment to its initial (uploaded) state."""
     return env_instance.reset()
 
 @app.post("/step")
 def step_endpoint(action: CleanAction):
-    """Executes a cleaning command and returns the reward (Integrity Improvement)."""
+    """Executes a cleaning command and returns the calculated Reward."""
     return env_instance.step(action)
 
 def main():
-    # Hugging Face requires port 8000
+    # Hugging Face Spaces require the app to listen on port 8000
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     main()
+    
