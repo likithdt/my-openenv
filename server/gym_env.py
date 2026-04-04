@@ -77,7 +77,9 @@ class DataCleaningEnv(Env):
         """Returns the current raw state of the dataset."""
         return DataState(
             data=self.df.to_dict(orient='records'),
-            integrity_score=self.calculate_integrity()
+            integrity_score=float(self.calculate_integrity()),
+            current_task_index=0, # You can update this based on your task logic
+            steps_taken=self.step_count
         )
 
     def step(self, action: CleanAction) -> Dict[str, Any]:
@@ -118,11 +120,20 @@ class DataCleaningEnv(Env):
         }
 
     def _get_observation(self, goal_text: str) -> DataObservation:
-        """Helper to format the internal state for the AI Agent."""
+        """
+        Force-converts all NumPy/Pandas types to standard Python types 
+        to prevent FastAPI validation 500 errors.
+        """
         return DataObservation(
+            # Convert DataFrame summary to a clean dict
             summary=self.df.describe(include='all').fillna(0).to_dict(),
+            # Convert sample rows to a list of dicts
             sample_rows=self.df.head(5).to_dict(orient='records'),
-            column_names=list(self.df.columns),
+            # Ensure column names are a list of strings
+            column_names=[str(c) for c in self.df.columns],
+            # CRITICAL: Force health_score to a standard Python float
             health_score=float(self.calculate_integrity()),
-            goal=goal_text
+            # Ensure goal is a string
+            goal=str(goal_text)
         )
+
