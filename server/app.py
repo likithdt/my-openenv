@@ -2,18 +2,20 @@ import uvicorn
 import pandas as pd
 import io
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
 
 app = FastAPI(
     title="Data Integrity Lab",
-    docs_url="/",       # THIS IS THE TRICK: Move Swagger to the root
+    docs_url="/",       
     redoc_url="/redoc"
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -23,10 +25,6 @@ env_instance = DataCleaningEnv()
 
 @app.get("/health")
 async def health():
-    return {"status": "Online", "integrity": env_instance.calculate_integrity()}
-    
-@app.get("/")
-async def root():
     """Explicitly defined root to kill the 404 error."""
     return {
         "status": "Online",
@@ -36,6 +34,8 @@ async def root():
 
 @app.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Invalid file type.")
     try:
         contents = await file.read()
         new_df = pd.read_csv(io.BytesIO(contents))
