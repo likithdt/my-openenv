@@ -1,17 +1,19 @@
 import uvicorn
 import pandas as pd
 import io
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from typing import Optional
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
 
 app = FastAPI(
-    title="Data Integrity Lab",
-    docs_url="/",       
+    title="Data Integrity Lab - Competition Edition",
+    docs_url="/", # Swagger UI at root
     redoc_url="/redoc"
 )
 
+# Enable CORS for Hugging Face Space stability
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,22 +22,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global environment instance
 env_instance = DataCleaningEnv()
 
 @app.get("/health")
 async def health():
     return {
-        "status": "Online",
-        "integrity_index": env_instance.calculate_integrity(),
-        "info": "Navigate to /docs to upload and clean data."
-    }
-
-@app.get("/history")
-async def get_history():
-    return {
-        "total_steps": env_instance.step_count,
-        "final_integrity": env_instance.calculate_integrity(),
-        "log": env_instance.history
+        "status": "Online", 
+        "current_task": env_instance.current_task,
+        "integrity": env_instance.calculate_integrity()
     }
 
 @app.post("/upload")
@@ -46,18 +41,38 @@ async def upload_csv(file: UploadFile = File(...)):
         contents = await file.read()
         new_df = pd.read_csv(io.BytesIO(contents))
         global env_instance
+        # Re-initialize with user data for 'Hard' mode
         env_instance = DataCleaningEnv(df=new_df)
-        return {"message": "Success", "initial_integrity": env_instance.calculate_integrity()}
+        return {
+            "message": "Data Loaded Successfully", 
+            "initial_integrity": env_instance.calculate_integrity()
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/reset")
-async def reset():
-    return env_instance.reset()
+async def reset(task_id: str = Query("easy", enum=["easy", "medium", "hard"])):
+    """
+    REQUIRED: Resets the environment to a specific grader task.
+    """
+    return env_instance.reset(task_id=task_id)
 
 @app.post("/step")
 async def step(action: CleanAction):
+    """
+    REQUIRED: Executes an agent action and returns Reward/Observation.
+    """
     return env_instance.step(action)
+
+@app.get("/history")
+async def history():
+    """Provides the Audit Trail for the judges."""
+    return {
+        "task": env_instance.current_task,
+        "steps": env_instance.step_count,
+        "log": env_instance.history
+    }
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
