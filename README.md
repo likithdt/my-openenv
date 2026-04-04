@@ -45,3 +45,22 @@ $$Reward = (I_{after} - I_{before}) \times 100$$
   └── models.py   # Pydantic Schemas for Data Validation
 Dockerfile        # Containerization for Hugging Face Spaces
 requirements.txt  # Project Dependencies
+
+## 🤖 OpenEnv Specification
+
+### Action Space
+The agent can perform **Discrete(3)** actions via the `/step` endpoint:
+- `drop_duplicates`: Removes redundant rows ($I \uparrow$).
+- `fill_median`: Imputes missing numerical values ($I \uparrow$).
+- `drop_nulls`: Removes rows with missing values ($I \uparrow$).
+
+### Observation Space
+A dictionary returned after every step:
+- `health_score`: Float [0.0 - 1.0] (The Grader's metric).
+- `summary`: Statistical distribution of the current data.
+- `sample_rows`: A 5-row preview for context.
+
+### 🏆 Tasks & Graders
+1. **Easy**: Remove duplicates from a 3-row set.
+2. **Medium**: Handle missing values and duplicates simultaneously.
+3. **Hard**: Scaled cleaning on user-uploaded CSV data.

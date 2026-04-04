@@ -14,4 +14,5 @@ class CleanAction(Action):
 
 class DataState(State):
     current_task_index: int = 0
-    steps_taken: int = 0 # Ensure this matches your env.py state() method
+    steps_taken: int = 0
+    

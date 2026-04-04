@@ -20,12 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize the environment globally
 env_instance = DataCleaningEnv()
 
 @app.get("/health")
 async def health():
-    """Explicitly defined root to kill the 404 error."""
     return {
         "status": "Online",
         "integrity_index": env_instance.calculate_integrity(),
@@ -34,9 +32,6 @@ async def health():
 
 @app.get("/history")
 async def get_history():
-    """
-    THE AUDIT TRAIL: Shows every cleaning step taken by the AI.
-    """
     return {
         "total_steps": env_instance.step_count,
         "final_integrity": env_instance.calculate_integrity(),
@@ -64,6 +59,5 @@ async def reset():
 async def step(action: CleanAction):
     return env_instance.step(action)
 
-# This is the CRITICAL part for Hugging Face
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
