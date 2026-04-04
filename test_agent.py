@@ -5,6 +5,12 @@ import time
 BASE_URL = "https://likithdt-data-integrity-lab.hf.space"
 
 def run_inference():
+    # 1. Reset
+    res = requests.post(f"{BASE_URL}/reset", params={"task_id": "easy"})
+    # 2. Step
+    # Explicitly define the JSON payload to match CleanAction model
+    action = {"command": "drop_duplicates", "target_column": None}
+    res = requests.post(f"{BASE_URL}/step", json=action)
     print(f"🚀 Starting Inference Test on {BASE_URL}")
     
     try:
@@ -48,4 +54,3 @@ def run_inference():
 
 if __name__ == "__main__":
     run_inference()
-    

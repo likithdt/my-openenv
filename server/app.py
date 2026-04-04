@@ -60,9 +60,15 @@ async def reset(task_id: str = Query("easy", enum=["easy", "medium", "hard"])):
 @app.post("/step")
 async def step(action: CleanAction):
     """
-    REQUIRED: Executes an agent action and returns Reward/Observation.
+    Executes an agent action and returns Reward/Observation.
     """
-    return env_instance.step(action)
+    try:
+        result = env_instance.step(action)
+        return result
+    except Exception as e:
+        # This will print the actual error in the Hugging Face logs
+        print(f"STEP ERROR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/history")
 async def history():
@@ -75,4 +81,3 @@ async def history():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    

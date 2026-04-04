@@ -84,40 +84,52 @@ class DataCleaningEnv(Env):
 
     def step(self, action: CleanAction) -> Dict[str, Any]:
         """
-        Executes an action, calculates the Reward, and returns the next Observation.
+        Executes an action and returns a strictly JSON-serializable dictionary.
         """
-        self.step_count += 1
-        old_score = self.calculate_integrity()
-        
-        # Logic for Action Space
-        if action.command == "drop_duplicates":
-            self.df = self.df.drop_duplicates()
-        elif action.command == "fill_median":
-            num_cols = self.df.select_dtypes(include=[np.number]).columns
-            for col in num_cols:
-                self.df[col] = self.df[col].fillna(self.df[col].median())
-        elif action.command == "drop_nulls":
-            self.df = self.df.dropna()
+        try:
+            self.step_count += 1
+            # old_score MUST be a standard float
+            old_score = float(self.calculate_integrity())
+            
+            # 1. Standardize the command input
+            cmd = str(action.command).lower()
+            
+            # 2. Execute Action Logic
+            if cmd == "drop_duplicates":
+                self.df = self.df.drop_duplicates()
+            elif cmd == "fill_median":
+                num_cols = self.df.select_dtypes(include=[np.number]).columns
+                for col in num_cols:
+                    median_val = self.df[col].median()
+                    self.df[col] = self.df[col].fillna(median_val)
+            elif cmd == "drop_nulls":
+                self.df = self.df.dropna()
 
-        new_score = self.calculate_integrity()
-        
-        # Reward is the partial progress signal (improvement in score)
-        reward = round((new_score - old_score) * 100, 2)
-        
-        # Log to History for Audit Trail
-        self.history.append({
-            "step": self.step_count,
-            "action": action.command,
-            "reward": reward,
-            "score": new_score
-        })
-        
-        return {
-            "observation": self._get_observation(f"Executed {action.command}"),
-            "reward": reward,
-            "done": new_score >= 0.999 or self.step_count >= 10,
-            "history": self.history
-        }
+            # 3. Calculate New Metrics
+            new_score = float(self.calculate_integrity())
+            reward = float(round((new_score - old_score) * 100, 2))
+            
+            # 4. Update History (Ensure everything is a standard Python type)
+            self.history.append({
+                "step": int(self.step_count),
+                "action": str(cmd),
+                "reward": float(reward),
+                "score": float(new_score)
+            })
+            
+            # 5. Return the Response (Force all types for FastAPI validation)
+            return {
+                "observation": self._get_observation(f"Executed {cmd}"),
+                "reward": float(reward),
+                "done": bool(new_score >= 0.999 or self.step_count >= 10),
+                "history": self.history
+            }
+            
+        except Exception as e:
+            # This prints the REAL error in your Hugging Face Logs
+            print(f"--- STEP EXECUTION CRASH ---")
+            print(f"Error: {str(e)}")
+            raise e
 
     def _get_observation(self, goal_text: str) -> DataObservation:
         """
