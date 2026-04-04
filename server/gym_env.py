@@ -123,7 +123,6 @@ class DataCleaningEnv(Env):
             summary=self.df.describe(include='all').fillna(0).to_dict(),
             sample_rows=self.df.head(5).to_dict(orient='records'),
             column_names=list(self.df.columns),
-            health_score=self.calculate_integrity(),
+            health_score=float(self.calculate_integrity()),
             goal=goal_text
         )
-        
