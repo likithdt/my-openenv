@@ -2,50 +2,49 @@ import uvicorn
 import os
 import sys
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# Ensure the server directory is in the path for imports
+# Ensure server directory is in path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.append(CURRENT_DIR)
+sys.path.append(CURRENT_DIR)
 
-from gym_env import DataCleaningEnv #
+from gym_env import DataCleaningEnv
 
-# Create the app with a specific root_path to handle Hugging Face proxying
-app = FastAPI(title="Data Integrity Lab", root_path="") 
+app = FastAPI()
+env_instance = DataCleaningEnv()
+env_instance.reset(task_id="easy")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-env_instance = DataCleaningEnv() #
-
-# Catch-all route to diagnose where the request is actually landing
-@app.get("/{full_path:path}", response_class=HTMLResponse)
-async def catch_all(request: Request, full_path: str):
-    return f"""
-    <html>
-        <body style="font-family: sans-serif; text-align: center; padding: 50px;">
-            <h1>📊 Data Integrity Lab: Online</h1>
-            <p style="color: green; font-weight: bold;">Server is responding!</p>
-            <p>You tried to access: <code>/{full_path}</code></p>
-            <hr>
-            <p>API is active at <code>/reset</code> and <code>/step</code></p>
-            <p style="font-size: 0.8em;">Likith D T | Gopalan College</p>
-        </body>
-    </html>
-    """
+# API for your new UI to call
+@app.get("/health")
+async def health():
+    return {
+        "integrity": env_instance.calculate_integrity(),
+        "steps": env_instance.step_count,
+        "data": env_instance.df.head(10).to_dict(orient='records')
+    }
 
 @app.post("/reset")
-async def reset():
-    env_instance.reset() #
+async def reset(request: Request):
+    data = await request.json()
+    env_instance.reset(task_id=data.get("task_id", "easy"))
     return {"status": "success"}
 
 @app.post("/step")
 async def step(request: Request):
-    data = await request.json() 
-    return env_instance.step(data) 
+    action = await request.json()
+    return env_instance.step(action)
+
+# Serve your custom UI file here
+@app.get("/{path:path}")
+async def serve_ui(path: str):
+    ui_path = os.path.join(CURRENT_DIR, "index.html")
+    if os.path.exists(ui_path):
+        return FileResponse(ui_path)
+    return HTMLResponse("<h1>UI File Not Found</h1><p>Please ensure index.html is in the server/ folder.</p>")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=7860)
+    
