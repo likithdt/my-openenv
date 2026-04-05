@@ -2,7 +2,7 @@ import uvicorn
 import pandas as pd
 import io
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, HTTPException, Query
+from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 env_instance = DataCleaningEnv()
+
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return """
