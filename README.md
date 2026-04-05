@@ -1,9 +1,11 @@
+---
 title: Data Integrity Lab
 emoji: 📊
-colorFrom: blue
-colorTo: green
+colorFrom: indigo
+colorTo: emerald
 sdk: docker
 app_port: 8000
+---
 
 # Data Integrity Lab (OpenEnv)
 ### Autonomous Reinforcement Learning Environment for Data Auditing
