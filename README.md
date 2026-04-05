@@ -1,11 +1,9 @@
----
 title: Data Integrity Lab
 emoji: 📊
 colorFrom: blue
 colorTo: green
 sdk: docker
 app_port: 8000
----
 
 # Data Integrity Lab (OpenEnv)
 ### Autonomous Reinforcement Learning Environment for Data Auditing
@@ -17,7 +15,6 @@ app_port: 8000
 ## Motivation
 Data cleaning is a manual bottleneck in the AI lifecycle. Data Integrity Lab transforms static data cleaning into a dynamic Markov Decision Process (MDP). By modeling data health as a continuous Integrity Index, this environment allows RL agents to learn optimal, cost-efficient cleaning strategies that adapt to any dataset distribution.
 
----
 
 ## Technical Architecture
 The environment is built on a Modular Auditor Pattern, ensuring a strict separation between the environment state and the evaluation logic:
@@ -29,7 +26,6 @@ The environment is built on a Modular Auditor Pattern, ensuring a strict separat
 4. Reward Shaping: To optimize for both accuracy and efficiency, we implement a Dense Reward Function:
    Reward = (Current_Score - Previous_Score) * 100 - Step_Penalty
 
----
 
 ## Environment Specification
 
@@ -52,7 +48,6 @@ A rich state representation is returned after every action to provide the agent 
 | Medium | Moderate | Mixed noise (Nulls + Duplicates) requiring 1-2 steps. | 1.0 |
 | Hard | High | Scaled (100+ rows) real-world distribution with complex noise. | 1.0 |
 
----
 
 ## Getting Started
 
