@@ -5,6 +5,7 @@ import time
 from typing import List, Optional, Dict
 from openai import OpenAI
 
+# Mandatory OpenEnv Config
 API_BASE_URL = "https://router.huggingface.co/v1"
 MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -22,46 +23,43 @@ def log_end(success: bool, steps: int, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}", flush=True)
 
-def get_llm_action(observation: Dict) -> str:
-    """Uses direct requests to bypass potential local networking issues with the OpenAI client."""
+def get_llm_action(client: OpenAI, observation: Dict) -> str:
+    """
+    REQUIRED: Uses standard OpenAI Client to meet OpenEnv Round 1 requirements.
+    """
     score = observation.get('health_score', 0.0)
     goal = observation.get('goal', 'Clean the data.')
     
-    prompt = f"Role: Data Quality Agent. Score: {score}. Goal: {goal}. Respond with only: drop_duplicates, drop_nulls, or fill_median."
-
-    clean_api = API_BASE_URL.split(']')[0].split('(')[0].strip()
-    full_url = f"{clean_api}/chat/completions"
-
-    payload = {
-        "model": MODEL_NAME,
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 10,
-        "temperature": 0
-    }
-    
-    headers = {
-        "Authorization": f"Bearer {HF_TOKEN.strip()}", 
-        "Content-Type": "application/json"
-    }
+    prompt = f"Role: Data Quality Agent. Score: {score}. Goal: {goal}. Respond with only one word: drop_duplicates, drop_nulls, or fill_median."
 
     try:
-        response = requests.post(
-            full_url, 
-            json=payload, 
-            headers=headers, 
-            timeout=30
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=10,
+            temperature=0,
+            stream=False,
         )
-        response.raise_for_status()
-        res_json = response.json()
-        return res_json['choices'][0]['message']['content'].strip().lower()
+        action = (completion.choices[0].message.content or "").strip().lower()
+        
+        # Mapping model response to valid environment commands
+        valid_actions = ["drop_duplicates", "drop_nulls", "fill_median"]
+        for valid in valid_actions:
+            if valid in action:
+                return valid
+        return "none"
+        
     except Exception as e:
-        print(f"[DEBUG] LLM API Call Failed: {e}", flush=True)
+        print(f"[DEBUG] OpenAI Client Call Failed: {e}", flush=True)
         return "none"
 
 def run_benchmark():
-    if not HF_TOKEN or "your_actual_token" in HF_TOKEN:
-        print("[DEBUG] CRITICAL: HF_TOKEN is not set correctly. Use '$env:HF_TOKEN=\"your_key\"' in PowerShell.")
+    if not HF_TOKEN:
+        print("[DEBUG] CRITICAL: HF_TOKEN environment variable is missing.")
         return
+
+    # INITIALIZE CLIENT ONCE (Mandatory Requirement)
+    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
     tasks = ["easy", "medium", "hard"]
     
@@ -74,12 +72,17 @@ def run_benchmark():
         
         try:
             clean_base = BASE_URL.strip("[]() ")
-            reset_res = requests.post(f"{clean_base}/reset", params={"task_id": task_id}, timeout=15)
+            # Resetting environment for the specific task
+            reset_res = requests.post(f"{clean_base}/reset", json={"task_id": task_id}, timeout=15)
             reset_res.raise_for_status()
-            obs = reset_res.json()
+            obs_data = reset_res.json()
             
+            # OpenEnv typically returns an observation object on reset
+            obs = obs_data.get("observation", obs_data) if isinstance(obs_data, dict) else {}
+
             for step in range(1, 9):
-                action_cmd = get_llm_action(obs)
+                # PASSING CLIENT TO LLM FUNCTION
+                action_cmd = get_llm_action(client, obs)
                 
                 step_res = requests.post(f"{clean_base}/step", json={"command": action_cmd}, timeout=15)
                 step_res.raise_for_status()
@@ -96,13 +99,15 @@ def run_benchmark():
                 log_step(step=step, action=action_cmd, reward=reward, done=done, error=error)
                 
                 if done:
+                    # Success check based on integrity score (0.0 - 1.0)
                     success = (obs.get('health_score', 0.0) >= 0.99)
                     break
                     
         except Exception as e:
-            print(f"[DEBUG] Environment Connection Error: {e}", flush=True)
+            print(f"[DEBUG] Connection Error on Task {task_id}: {e}", flush=True)
         
         log_end(success=success, steps=steps_taken, rewards=rewards)
 
 if __name__ == "__main__":
     run_benchmark()
+    
