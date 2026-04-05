@@ -77,3 +77,12 @@ async def history():
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+def main():
+    """Main entry point for multi-mode deployment."""
+    import uvicorn
+    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
+
+if __name__ == "__main__":
+    main()
+    
