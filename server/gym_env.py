@@ -1,89 +1,74 @@
 import pandas as pd
 import numpy as np
+import os
+import sys
+import io
 from typing import List, Dict, Any, Optional
-from server.models import DataObservation, CleanAction, DataState
+
+try:
+    from .models import DataObservation, CleanAction, DataState
+except (ImportError, ValueError):
+    try:
+        from models import DataObservation, CleanAction, DataState
+    except ImportError:
+        from server.models import DataObservation, CleanAction, DataState
 
 class DataCleaningEnv:
-    def __init__(self):
-        self.df = pd.DataFrame()
-        self.initial_df = None
-        self.current_task = "easy"
+    def __init__(self, df: Optional[pd.DataFrame] = None):
+        self.df = df if df is not None else pd.DataFrame()
+        self.initial_df = self.df.copy() if not self.df.empty else None
+        self.current_task = "User Input Mode"
         self.step_count = 0
         self.history = []
 
+    def load_user_data(self, csv_content: str):
+        """Processes the CSV string provided by the user input."""
+        self.df = pd.read_csv(io.StringIO(csv_content))
+        self.initial_df = self.df.copy()
+        self.step_count = 0
+        self.history = []
+        return self._get_observation("Dataset loaded from user input")
+
     def calculate_integrity(self) -> float:
-        """
-        Deterministic Grader:
-        1.0 = No nulls AND no duplicates.
-        """
-        if self.df.empty:
+        if self.df is None or self.df.empty:
             return 0.0
         
-        null_penalty = self.df.isnull().sum().sum() / (self.df.size + 1e-9)
-        dup_penalty = self.df.duplicated().sum() / (len(self.df) + 1e-9)
+        total_elements = self.df.size + 1e-9
+        total_rows = len(self.df) + 1e-9
+        
+        null_penalty = self.df.isnull().sum().sum() / total_elements
+        dup_penalty = self.df.duplicated().sum() / total_rows
         
         score = 1.0 - (null_penalty + dup_penalty)
         return float(max(0.0, min(1.0, score)))
 
     def _get_observation(self, goal_text: str) -> DataObservation:
-        """
-        Creates a rich observation. 
-        Includes 'Hints' in the goal field to help LLMs avoid loops.
-        """
         null_count = int(self.df.isnull().sum().sum())
         dup_count = int(self.df.duplicated().sum())
-        
-        status_hint = f"{goal_text}. Found {null_count} nulls and {dup_count} duplicates."
+        status_hint = f"{goal_text}. Current: {null_count} nulls, {dup_count} dups."
+        summary_dict = self.df.describe(include='all').fillna(0).to_dict() if not self.df.empty else {}
         
         return DataObservation(
-            summary=self.df.describe(include='all').fillna(0).to_dict(),
+            summary=summary_dict,
             sample_rows=self.df.head(5).to_dict(orient='records'),
             column_names=[str(c) for c in self.df.columns],
             health_score=float(self.calculate_integrity()),
             goal=status_hint
         )
 
-    def reset(self, task_id: str = "easy") -> DataObservation:
-        self.current_task = task_id
+    def reset(self, task_id: str = "user_current") -> DataObservation:
+        """Resets the environment back to the user's originally uploaded data."""
         self.step_count = 0
         self.history = []
-        
-        if task_id == "easy":
-            self.df = pd.DataFrame({
-                'id': [1, 2, 2, 3, 3],
-                'name': ['Alice', 'Bob', 'Bob', 'Charlie', 'Charlie'],
-                'age': [25, 30, 30, 35, 35]
-            })
-        elif task_id == "medium":
-            self.df = pd.DataFrame({
-                'id': [1, 2, 3, 4, 5],
-                'val': [10, np.nan, 30, np.nan, 50],
-                'cat': ['A', 'B', None, 'D', 'E']
-            })
-        elif task_id == "hard":
-            np.random.seed(42)
-            n_rows = 100
-            self.df = pd.DataFrame({
-                'transaction_id': range(n_rows),
-                'user_id': np.random.choice(range(50), n_rows), 
-                'amount': [float(x) if np.random.random() > 0.15 else np.nan for x in np.random.uniform(10, 500, n_rows)],
-                'status': np.random.choice(['Success', 'Pending', None, 'Error'], n_rows)
-            })
-            
-            extra_dups = self.df.iloc[:10]
-            self.df = pd.concat([self.df, extra_dups]).sample(frac=1).reset_index(drop=True)
-            
-        self.initial_df = self.df.copy()
-        return self._get_observation(f"Clean the {task_id} dataset to reach score 1.0")
+        if self.initial_df is not None:
+            self.df = self.initial_df.copy()
+        return self._get_observation("Environment reset to initial user state")
 
-    def step(self, action: CleanAction) -> Dict[str, Any]:
-        """
-        Executes action, calculates reward, and provides feedback.
-        """
+    def step(self, action_input: Any) -> Dict[str, Any]:
         self.step_count += 1
         old_score = self.calculate_integrity()
         
-        cmd = str(action.command).lower()
+        cmd = str(action_input.get("command", "") if isinstance(action_input, dict) else action_input.command).lower()
         
         if "duplicate" in cmd:
             self.df = self.df.drop_duplicates()
@@ -95,15 +80,7 @@ class DataCleaningEnv:
             self.df = self.df.dropna()
 
         new_score = self.calculate_integrity()
-        progress = new_score - old_score
-        step_penalty = -1.0
-
-        if progress > 0:
-            reward = float(round(progress * 100, 2))+step_penalty
-            feedback = "Success! Integrity improved."
-        else:
-            reward = -2.0+step_penalty
-            feedback = "No change. Try a different cleaning command."
+        reward = float(round((new_score - old_score) * 100, 2)) - 1.0
 
         self.history.append({
             "step": int(self.step_count),
@@ -112,12 +89,10 @@ class DataCleaningEnv:
             "score": float(new_score)
         })
 
-        done = bool(new_score >= 0.999 or self.step_count >= 10)
-
         return {
-            "observation": self._get_observation(feedback),
+            "observation": self._get_observation("Action processed"),
             "reward": reward,
-            "done": done,
+            "done": bool(new_score >= 0.999 or self.step_count >= 15),
             "history": self.history
         }
 

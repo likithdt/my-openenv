@@ -7,3 +7,4 @@ openenv-core
 openai
 python-dotenv
 requests
+gradio

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Integrity Lab | Dark Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4f46e5;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-900 min-h-screen font-sans text-slate-100">
+
+    <header class="bg-indigo-950 text-white p-5 shadow-lg flex justify-between items-center border-b border-indigo-900">
+        <div>
+            <h1 class="text-2xl font-black tracking-tight">📊 Data Integrity Lab</h1>
+            <p class="text-[10px] text-indigo-400 font-mono">Model: VitalGuard-Core-v2</p>
+        </div>
+        <div>
+            <input type="file" id="csv-upload" accept=".csv" class="hidden" onchange="uploadFile(event)">
+            <label for="csv-upload"
+                class="bg-emerald-600 text-white px-10 py-4 rounded-xl font-black text-lg cursor-pointer hover:bg-emerald-500 shadow-xl transition active:scale-95">
+                📤 Upload User CSV
+            </label>
+        </div>
+    </header>
+
+    <main class="max-w-[1600px] mx-auto p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+
+        <div class="md:col-span-1 space-y-6">
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+                <h3 class="text-slate-500 text-[10px] font-black uppercase mb-4 tracking-widest">Environment Mode</h3>
+                <div class="flex flex-col gap-3">
+                    <button onclick="resetEnv('easy')"
+                        class="w-full py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold hover:bg-slate-600 transition">Easy
+                        Mode</button>
+                    <button onclick="resetEnv('medium')"
+                        class="w-full py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold hover:bg-slate-600 transition">Medium
+                        Mode</button>
+                    <button onclick="resetEnv('hard')"
+                        class="w-full py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-xs font-bold hover:bg-slate-600 transition">Hard
+                        Mode</button>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+                <h3 class="text-slate-500 text-[10px] font-black uppercase mb-4 tracking-widest">Cleaning Actions</h3>
+                <div class="flex flex-col gap-3">
+                    <button onclick="runStep('drop_duplicates')"
+                        class="w-full py-3 bg-emerald-800 text-emerald-100 rounded-xl text-xs font-bold hover:bg-emerald-700 shadow-lg transition">Drop
+                        Duplicates</button>
+                    <button onclick="runStep('fill_median')"
+                        class="w-full py-3 bg-amber-600 text-amber-950 rounded-xl text-xs font-bold hover:bg-amber-500 shadow-lg transition">Fill
+                        Median</button>
+                    <button onclick="runStep('drop_nulls')"
+                        class="w-full py-3 bg-rose-800 text-rose-100 rounded-xl text-xs font-bold hover:bg-rose-700 shadow-lg transition">Drop
+                        Null Rows</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="md:col-span-3 space-y-6">
+
+            <div class="grid grid-cols-2 gap-6">
+                <div
+                    class="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 flex justify-between items-center">
+                    <p class="text-slate-500 text-sm font-bold uppercase tracking-wider">Integrity Score</p>
+                    <h2 id="score-val" class="text-5xl font-black text-indigo-400">0.00</h2>
+                </div>
+                <div
+                    class="bg-slate-800 p-8 rounded-2xl shadow-xl border border-slate-700 flex justify-between items-center">
+                    <p class="text-slate-500 text-sm font-bold uppercase tracking-wider">Total Steps</p>
+                    <h2 id="step-val" class="text-5xl font-black text-slate-100">0</h2>
+                </div>
+            </div>
+
+            <div class="bg-slate-800 rounded-2xl shadow-xl border border-slate-700 overflow-hidden">
+                <div class="px-6 py-4 border-b border-slate-700 bg-slate-900/50 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-300 text-sm">Real-time Data Preview</h3>
+                </div>
+                <div class="overflow-x-auto max-h-[400px]">
+                    <table class="w-full text-left text-xs" id="data-table">
+                        <thead class="bg-slate-900 text-slate-400 uppercase sticky top-0">
+                            <tr>
+                                <th class="px-6 py-4 font-black">Waiting for Data...</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700 text-slate-300"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-black/50 rounded-2xl p-6 shadow-inner border border-slate-700">
+                <h3 class="text-indigo-400 text-[10px] font-black uppercase mb-4 tracking-widest">Audit Log Terminal
+                </h3>
+                <div id="console"
+                    class="font-mono text-[11px] text-gray-300 h-40 overflow-y-auto space-y-1.5 scrollbar-thin">
+                    <p class="text-gray-500">>> Waiting for system initialization...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const log = (msg, isError = false) => {
+            const div = document.getElementById('console');
+            const color = isError ? 'text-rose-400' : 'text-gray-300';
+            div.innerHTML += `<p class="${color}">[${new Date().toLocaleTimeString()}] >> ${msg}</p>`;
+            div.scrollTop = div.scrollHeight;
+        };
+
+        async function updateUI() {
+            const res = await fetch('/health');
+            const data = await res.json();
+            document.getElementById('score-val').innerText = data.integrity.toFixed(2);
+            document.getElementById('step-val').innerText = data.steps;
+
+            if (data.data.length > 0) {
+                const keys = Object.keys(data.data[0]);
+                document.querySelector('#data-table thead').innerHTML = `<tr>${keys.map(k => `<th class="px-6 py-4 font-bold">${k}</th>`).join('')}</tr>`;
+                document.querySelector('#data-table tbody').innerHTML = data.data.map(row => `<tr class="hover:bg-slate-700/50">${keys.map(k => `<td class="px-6 py-4">${row[k] === null ? '<span class="text-rose-400 font-bold">NULL</span>' : row[k]}</td>`).join('')}</tr>`).join('');
+            }
+        }
+
+        async function uploadFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            log(`Uploading file: ${file.name}...`);
+            const formData = new FormData();
+            formData.append("file", file);
+            await fetch("/upload", { method: "POST", body: formData });
+            log(`✅ File successfully loaded. Environment ready.`, 'text-emerald-400');
+            updateUI();
+        }
+
+        async function resetEnv(mode) {
+            log(`Changing mode to ${mode.toUpperCase()}...`);
+            await fetch('/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task_id: mode }) });
+            updateUI();
+        }
+
+        async function runStep(cmd) {
+            log(`Executing CleanAction: ${cmd}...`, 'text-amber-400');
+            const res = await fetch('/step', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ command: cmd }) });
+            const result = await res.json();
+            log(`Reward: ${result.reward.toFixed(2)} | Status: ${result.observation.goal}`);
+            updateUI();
+        }
+
+        updateUI();
+    </script>
+</body>
+
+</html>
