@@ -10,14 +10,9 @@ class DataObservation(Observation):
     goal: str
 
 class CleanAction(Action):
-    # The command the agent sends (e.g., "drop_duplicates")
-    command: str 
+    command: str
     target_column: Optional[str] = None
 
 class DataState(State):
-    # REQUIRED: OpenEnv State usually needs the 'data' field to render in the UI
-    data: List[Dict[str, Any]] 
-    integrity_score: float
     current_task_index: int = 0
     steps_taken: int = 0
-    

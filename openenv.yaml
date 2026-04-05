@@ -5,13 +5,11 @@ entrypoint: "server.app:app"
 env_type: "docker"
 web_interface: true
 
-# Mapping to your Pydantic models in server/models.py
 models:
   action: "server.models:CleanAction"
   observation: "server.models:DataObservation"
   state: "server.models:DataState"
 
-# REQUIREMENT: Definition of 3 tasks for the programmatic grader
 tasks:
   - id: "easy"
     description: "Remove row redundancy (duplicates) from a small controlled dataset."

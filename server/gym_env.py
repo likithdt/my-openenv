@@ -22,7 +22,6 @@ class DataCleaningEnv:
         null_penalty = self.df.isnull().sum().sum() / (self.df.size + 1e-9)
         dup_penalty = self.df.duplicated().sum() / (len(self.df) + 1e-9)
         
-        # Integrity is 1.0 minus the density of errors
         score = 1.0 - (null_penalty + dup_penalty)
         return float(max(0.0, min(1.0, score)))
 
@@ -34,7 +33,6 @@ class DataCleaningEnv:
         null_count = int(self.df.isnull().sum().sum())
         dup_count = int(self.df.duplicated().sum())
         
-        # REQUIREMENT: Provide feedback to the agent
         status_hint = f"{goal_text}. Found {null_count} nulls and {dup_count} duplicates."
         
         return DataObservation(
@@ -51,34 +49,27 @@ class DataCleaningEnv:
         self.history = []
         
         if task_id == "easy":
-            # Task: Remove Duplicates
             self.df = pd.DataFrame({
                 'id': [1, 2, 2, 3, 3],
                 'name': ['Alice', 'Bob', 'Bob', 'Charlie', 'Charlie'],
                 'age': [25, 30, 30, 35, 35]
             })
         elif task_id == "medium":
-            # Task: Remove Nulls
             self.df = pd.DataFrame({
                 'id': [1, 2, 3, 4, 5],
                 'val': [10, np.nan, 30, np.nan, 50],
                 'cat': ['A', 'B', None, 'D', 'E']
             })
         elif task_id == "hard":
-            # Task: Real-world messy distribution
             np.random.seed(42)
             n_rows = 100
             self.df = pd.DataFrame({
                 'transaction_id': range(n_rows),
-                # 10% Duplicates
                 'user_id': np.random.choice(range(50), n_rows), 
-                # 15% Nulls in 'amount'
                 'amount': [float(x) if np.random.random() > 0.15 else np.nan for x in np.random.uniform(10, 500, n_rows)],
-                # Mixed categorical noise
                 'status': np.random.choice(['Success', 'Pending', None, 'Error'], n_rows)
             })
             
-            # Manually inject some exact duplicates to ensure drop_duplicates is needed
             extra_dups = self.df.iloc[:10]
             self.df = pd.concat([self.df, extra_dups]).sample(frac=1).reset_index(drop=True)
             
@@ -94,7 +85,6 @@ class DataCleaningEnv:
         
         cmd = str(action.command).lower()
         
-        # 1. Action Logic
         if "duplicate" in cmd:
             self.df = self.df.drop_duplicates()
         elif "median" in cmd:
@@ -104,7 +94,6 @@ class DataCleaningEnv:
         elif "null" in cmd:
             self.df = self.df.dropna()
 
-        # 2. Score & Reward Calculation
         new_score = self.calculate_integrity()
         progress = new_score - old_score
         step_penalty = -1.0
@@ -116,7 +105,6 @@ class DataCleaningEnv:
             reward = -2.0+step_penalty
             feedback = "No change. Try a different cleaning command."
 
-        # 3. Update Audit History
         self.history.append({
             "step": int(self.step_count),
             "action": cmd,
@@ -124,7 +112,6 @@ class DataCleaningEnv:
             "score": float(new_score)
         })
 
-        # 4. Termination Logic
         done = bool(new_score >= 0.999 or self.step_count >= 10)
 
         return {

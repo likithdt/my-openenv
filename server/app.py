@@ -9,11 +9,10 @@ from server.models import CleanAction
 
 app = FastAPI(
     title="Data Integrity Lab - Competition Edition",
-    docs_url="/", # Swagger UI at root
+    docs_url="/", 
     redoc_url="/redoc"
 )
 
-# Enable CORS for Hugging Face Space stability
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,7 +21,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global environment instance
 env_instance = DataCleaningEnv()
 
 @app.get("/health")
@@ -41,7 +39,6 @@ async def upload_csv(file: UploadFile = File(...)):
         contents = await file.read()
         new_df = pd.read_csv(io.BytesIO(contents))
         global env_instance
-        # Re-initialize with user data for 'Hard' mode
         env_instance = DataCleaningEnv(df=new_df)
         return {
             "message": "Data Loaded Successfully", 
@@ -66,7 +63,6 @@ async def step(action: CleanAction):
         result = env_instance.step(action)
         return result
     except Exception as e:
-        # This will print the actual error in the Hugging Face logs
         print(f"STEP ERROR: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 

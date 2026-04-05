@@ -1,21 +1,15 @@
 import requests
 import time
 
-# Ensure there is NO trailing slash here
 BASE_URL = "https://likithdt-data-integrity-lab.hf.space"
 
 def run_inference():
-    # 1. Reset
     res = requests.post(f"{BASE_URL}/reset", params={"task_id": "easy"})
-    # 2. Step
-    # Explicitly define the JSON payload to match CleanAction model
     action = {"command": "drop_duplicates", "target_column": None}
     res = requests.post(f"{BASE_URL}/step", json=action)
     print(f"🚀 Starting Inference Test on {BASE_URL}")
     
     try:
-        # 1. Reset to 'Easy' Task
-        # Note: Using params={} ensures the query string is formatted correctly
         print("\n--- Step 1: Resetting to EASY task ---")
         res = requests.post(f"{BASE_URL}/reset", params={"task_id": "easy"}, timeout=10)
         
@@ -24,11 +18,9 @@ def run_inference():
             return
 
         data = res.json()
-        # Accessing nested health_score if it's inside the observation
         initial_score = data.get('health_score')
         print(f"Initial Health Score: {initial_score}")
 
-        # 2. Take Action: drop_duplicates
         print("\n--- Step 2: Agent taking action 'drop_duplicates' ---")
         action = {"command": "drop_duplicates"}
         res = requests.post(f"{BASE_URL}/step", json=action, timeout=10)
@@ -39,7 +31,6 @@ def run_inference():
 
         result = res.json()
         
-        # 3. Check Final Score (Looking inside the observation dictionary)
         final_score = result['observation']['health_score']
         print(f"Final Health Score: {final_score}")
         

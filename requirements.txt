@@ -4,3 +4,6 @@ pydantic
 uvicorn
 fastapi
 openenv-core
+openai
+python-dotenv
+requests
