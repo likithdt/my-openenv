@@ -6,6 +6,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from server.gym_env import DataCleaningEnv
 from server.models import CleanAction
+from fastapi.responses import HTMLResponse
 
 app = FastAPI(
     title="Data Integrity Lab - Competition Edition",
@@ -22,7 +23,30 @@ app.add_middleware(
 )
 
 env_instance = DataCleaningEnv()
-
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return """
+    <html>
+        <head>
+            <title>Data Integrity Lab | OpenEnv</title>
+            <style>
+                body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f7f6; }
+                .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); display: inline-block; }
+                h1 { color: #2c3e50; }
+                .status { color: #27ae60; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <h1>📊 Data Integrity Lab</h1>
+                <p>Status: <span class="status">RUNNING</span></p>
+                <p>OpenEnv v2.0 Specification Compliant</p>
+                <hr>
+                <p style="font-size: 0.8em; color: #7f8c8d;">Gopalan College of Engineering & Management | Round 1</p>
+            </div>
+        </body>
+    </html>
+    """
 @app.get("/health")
 async def health():
     return {
@@ -85,4 +109,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
