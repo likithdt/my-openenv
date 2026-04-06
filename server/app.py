@@ -5,16 +5,24 @@ from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# Ensure server directory is in path
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(CURRENT_DIR)
+if CURRENT_DIR not in sys.path:
+    sys.path.append(CURRENT_DIR)
 
-from gym_env import DataCleaningEnv
+try:
+    from gym_env import DataCleaningEnv
+except ImportError:
+    from server.gym_env import DataCleaningEnv
 
 app = FastAPI()
 env_instance = DataCleaningEnv()
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware, 
+    allow_origins=["*"], 
+    allow_methods=["*"], 
+    allow_headers=["*"]
+)
 
 @app.get("/health")
 async def health():
@@ -23,13 +31,6 @@ async def health():
         "steps": env_instance.step_count,
         "data": env_instance.df.head(10).to_dict(orient='records') if not env_instance.df.empty else []
     }
-
-@app.get("/{path:path}")
-async def serve_ui(path: str):
-    ui_path = os.path.join(CURRENT_DIR, "index.html")
-    if os.path.exists(ui_path):
-        return FileResponse(ui_path)
-    return HTMLResponse("<h1>UI File Not Found</h1>")
 
 @app.get("/state")
 async def get_state():
@@ -44,7 +45,12 @@ async def upload_csv(file: UploadFile = File(...)):
 
 @app.post("/reset")
 async def reset(request: Request):
-    env_instance.reset()
+    try:
+        data = await request.json()
+        task_id = data.get("task_id", "easy")
+        env_instance.reset(task_id=task_id)
+    except:
+        env_instance.reset()
     return {"status": "success"}
 
 @app.post("/step")
@@ -60,7 +66,6 @@ async def serve_ui(path: str):
     return HTMLResponse("<h1>UI File Not Found</h1><p>Upload index.html to the server folder.</p>")
 
 def main():
-    import uvicorn
     uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
 
 if __name__ == "__main__":
