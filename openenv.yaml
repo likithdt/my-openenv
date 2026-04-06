@@ -1,7 +1,7 @@
 name: "data-integrity-lab"
 version: "2.0.0"
 description: "A real-world environment for training agents to clean and audit datasets using RL and LLM-based tools."
-entrypoint: "server.app:app"
+entrypoint: "server.app:main"
 env_type: "docker"
 web_interface: true
 
