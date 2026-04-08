@@ -30,7 +30,7 @@ class DataCleaningEnv:
 
     def calculate_integrity(self) -> float:
         if self.df is None or self.df.empty:
-            return 0.15
+            return 0.30
         
         total_elements = self.df.size + 1e-9
         total_rows = len(self.df) + 1e-9
@@ -39,7 +39,7 @@ class DataCleaningEnv:
         dup_penalty = self.df.duplicated().sum() / total_rows
         
         score = 1.0 - (null_penalty + dup_penalty)
-        return float(max(0.15, min(0.90, score)))
+        return float(max(0.30, min(0.85, score)))
 
     def _get_observation(self, goal_text: str) -> DataObservation:
         null_count = int(self.df.isnull().sum().sum())
