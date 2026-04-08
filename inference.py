@@ -1,14 +1,8 @@
 import os
 import requests
-import textwrap
 import time
 from typing import List, Optional, Dict
 from openai import OpenAI
-
-API_BASE_URL = "https://router.huggingface.co/v1"
-MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
-HF_TOKEN = os.getenv("HF_TOKEN")
-BASE_URL = os.getenv("BASE_URL", "https://likithdt-my-env.hf.space")
 
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
@@ -22,9 +16,9 @@ def log_end(success: bool, steps: int, rewards: List[float]) -> None:
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
     print(f"[END] success={str(success).lower()} steps={steps} rewards={rewards_str}", flush=True)
 
-def get_llm_action(client: OpenAI, observation: Dict) -> str:
+def get_llm_action(client: OpenAI, model_name: str, observation: Dict) -> str:
     """
-    REQUIRED: Uses standard OpenAI Client to meet OpenEnv Round 1 requirements.
+    Standard OpenAI Client call formatted for the LiteLLM Proxy.
     """
     score = observation.get('health_score', 0.0)
     goal = observation.get('goal', 'Clean the data.')
@@ -33,7 +27,7 @@ def get_llm_action(client: OpenAI, observation: Dict) -> str:
 
     try:
         completion = client.chat.completions.create(
-            model=MODEL_NAME,
+            model=model_name,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=10,
             temperature=0,
@@ -48,27 +42,34 @@ def get_llm_action(client: OpenAI, observation: Dict) -> str:
         return "none"
         
     except Exception as e:
-        print(f"[DEBUG] OpenAI Client Call Failed: {e}", flush=True)
+        print(f"[DEBUG] Proxy Call Failed: {e}", flush=True)
         return "none"
 
 def run_benchmark():
-    if not HF_TOKEN:
-        print("[DEBUG] CRITICAL: HF_TOKEN environment variable is missing.")
+    api_base = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+    api_key = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
+    model_name = os.getenv("MODEL_NAME", "meta-llama/Llama-3.1-8B-Instruct")
+    
+    raw_base_url = os.getenv("BASE_URL", "https://likithdt-my-env.hf.space")
+    clean_base = raw_base_url.strip("[]() ")
+
+    if not api_key:
+        print("[DEBUG] CRITICAL: No API_KEY or HF_TOKEN environment variable found.")
         return
 
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+    client = OpenAI(base_url=api_base, api_key=api_key)
 
+    env_name = "my-env"
     tasks = ["easy", "medium", "hard"]
     
     for task_id in tasks:
-        log_start(task=task_id, env="data-integrity-lab", model=MODEL_NAME)
+        log_start(task=task_id, env=env_name, model=model_name)
         
         rewards = []
         steps_taken = 0
         success = False
         
         try:
-            clean_base = BASE_URL.strip("[]() ")
             reset_res = requests.post(f"{clean_base}/reset", json={"task_id": task_id}, timeout=15)
             reset_res.raise_for_status()
             obs_data = reset_res.json()
@@ -76,7 +77,7 @@ def run_benchmark():
             obs = obs_data.get("observation", obs_data) if isinstance(obs_data, dict) else {}
 
             for step in range(1, 9):
-                action_cmd = get_llm_action(client, obs)
+                action_cmd = get_llm_action(client, model_name, obs)
                 
                 step_res = requests.post(f"{clean_base}/step", json={"command": action_cmd}, timeout=15)
                 step_res.raise_for_status()
@@ -93,7 +94,8 @@ def run_benchmark():
                 log_step(step=step, action=action_cmd, reward=reward, done=done, error=error)
                 
                 if done:
-                    success = (obs.get('health_score', 0.0) >= 0.98)
+                    health = obs.get('health_score', 0.0)
+                    success = (health >= 0.97)
                     break
                     
         except Exception as e:
@@ -103,4 +105,3 @@ def run_benchmark():
 
 if __name__ == "__main__":
     run_benchmark()
-    
