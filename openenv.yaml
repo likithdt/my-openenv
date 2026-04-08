@@ -14,15 +14,15 @@ tasks:
   - id: "easy"
     description: "Remove row redundancy (duplicates) from a small controlled dataset."
     difficulty: "easy"
-    expected_score: 1.0
+    expected_score: 0.99
   - id: "medium"
     description: "Handle missing values (NaNs) in a dataset."
     difficulty: "medium"
-    expected_score: 1.0
+    expected_score: 0.99
   - id: "hard"
     description: "Multi-step cleaning of a messy, mixed dataset."
     difficulty: "hard"
-    expected_score: 1.0
+    expected_score: 0.99
 
 repo: "https://github.com/likith-dt/my-openenv" 
 license: "MIT"

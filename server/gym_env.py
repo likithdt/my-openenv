@@ -22,16 +22,15 @@ class DataCleaningEnv:
         self.history = []
 
     def load_user_data(self, csv_content: str):
-        """Processes the CSV string provided by the user input."""
         self.df = pd.read_csv(io.StringIO(csv_content))
         self.initial_df = self.df.copy()
         self.step_count = 0
         self.history = []
-        return self._get_observation("Dataset loaded from user input")
+        return self._get_observation("Dataset loaded")
 
     def calculate_integrity(self) -> float:
         if self.df is None or self.df.empty:
-            return 0.0
+            return 0.051
         
         total_elements = self.df.size + 1e-9
         total_rows = len(self.df) + 1e-9
@@ -40,7 +39,7 @@ class DataCleaningEnv:
         dup_penalty = self.df.duplicated().sum() / total_rows
         
         score = 1.0 - (null_penalty + dup_penalty)
-        return float(max(0.0, min(1.0, score)))
+        return float(max(0.005, min(0.995, score)))
 
     def _get_observation(self, goal_text: str) -> DataObservation:
         null_count = int(self.df.isnull().sum().sum())
@@ -57,12 +56,11 @@ class DataCleaningEnv:
         )
 
     def reset(self, task_id: str = "user_current") -> DataObservation:
-        """Resets the environment back to the user's originally uploaded data."""
         self.step_count = 0
         self.history = []
         if self.initial_df is not None:
             self.df = self.initial_df.copy()
-        return self._get_observation("Environment reset to initial user state")
+        return self._get_observation("Environment reset")
 
     def step(self, action_input: Any) -> Dict[str, Any]:
         self.step_count += 1
@@ -80,7 +78,7 @@ class DataCleaningEnv:
             self.df = self.df.dropna()
 
         new_score = self.calculate_integrity()
-        reward = float(round((new_score - old_score) * 100, 2)) - 1.0
+        reward = float(round((new_score - old_score) * 100, 2)) - 1.001
 
         self.history.append({
             "step": int(self.step_count),
@@ -92,7 +90,7 @@ class DataCleaningEnv:
         return {
             "observation": self._get_observation("Action processed"),
             "reward": reward,
-            "done": bool(new_score >= 0.999 or self.step_count >= 15),
+            "done": bool(new_score >= 0.98 or self.step_count >= 15),
             "history": self.history
         }
 

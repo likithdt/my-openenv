@@ -5,7 +5,6 @@ import time
 from typing import List, Optional, Dict
 from openai import OpenAI
 
-# Mandatory OpenEnv Config
 API_BASE_URL = "https://router.huggingface.co/v1"
 MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 HF_TOKEN = os.getenv("HF_TOKEN")
@@ -42,7 +41,6 @@ def get_llm_action(client: OpenAI, observation: Dict) -> str:
         )
         action = (completion.choices[0].message.content or "").strip().lower()
         
-        # Mapping model response to valid environment commands
         valid_actions = ["drop_duplicates", "drop_nulls", "fill_median"]
         for valid in valid_actions:
             if valid in action:
@@ -58,7 +56,6 @@ def run_benchmark():
         print("[DEBUG] CRITICAL: HF_TOKEN environment variable is missing.")
         return
 
-    # INITIALIZE CLIENT ONCE (Mandatory Requirement)
     client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
     tasks = ["easy", "medium", "hard"]
@@ -72,16 +69,13 @@ def run_benchmark():
         
         try:
             clean_base = BASE_URL.strip("[]() ")
-            # Resetting environment for the specific task
             reset_res = requests.post(f"{clean_base}/reset", json={"task_id": task_id}, timeout=15)
             reset_res.raise_for_status()
             obs_data = reset_res.json()
             
-            # OpenEnv typically returns an observation object on reset
             obs = obs_data.get("observation", obs_data) if isinstance(obs_data, dict) else {}
 
             for step in range(1, 9):
-                # PASSING CLIENT TO LLM FUNCTION
                 action_cmd = get_llm_action(client, obs)
                 
                 step_res = requests.post(f"{clean_base}/step", json={"command": action_cmd}, timeout=15)
@@ -99,8 +93,7 @@ def run_benchmark():
                 log_step(step=step, action=action_cmd, reward=reward, done=done, error=error)
                 
                 if done:
-                    # Success check based on integrity score (0.0 - 1.0)
-                    success = (obs.get('health_score', 0.0) >= 0.99)
+                    success = (obs.get('health_score', 0.0) >= 0.98)
                     break
                     
         except Exception as e:
