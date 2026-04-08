@@ -39,7 +39,7 @@ class DataCleaningEnv:
         dup_penalty = self.df.duplicated().sum() / total_rows
         
         score = 1.0 - (null_penalty + dup_penalty)
-        return float(max(0.30, min(0.85, score)))
+        return float(max(0.15, min(0.90, score)))
 
     def _get_observation(self, goal_text: str) -> DataObservation:
         null_count = int(self.df.isnull().sum().sum())

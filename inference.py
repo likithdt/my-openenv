@@ -95,7 +95,7 @@ def run_benchmark():
                 
                 if done:
                     health = obs.get('health_score', 0.0)
-                    success = (health >= 0.70)
+                    success = (health >= 0.82)
                     break
                     
         except Exception as e:
