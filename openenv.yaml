@@ -1,4 +1,4 @@
-name: "data-integrity-lab"
+name: "my-env"
 version: "2.0.0"
 description: "A real-world environment for training agents to clean and audit datasets using RL and LLM-based tools."
 entrypoint: "server.app:main"

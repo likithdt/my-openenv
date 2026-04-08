@@ -8,7 +8,7 @@ from openai import OpenAI
 API_BASE_URL = "https://router.huggingface.co/v1"
 MODEL_NAME = "meta-llama/Llama-3.1-8B-Instruct"
 HF_TOKEN = os.getenv("HF_TOKEN")
-BASE_URL = os.getenv("BASE_URL", "https://likithdt-data-integrity-lab.hf.space")
+BASE_URL = os.getenv("BASE_URL", "https://likithdt-my-env.hf.space")
 
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
