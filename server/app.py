@@ -48,10 +48,10 @@ async def reset(request: Request):
     try:
         data = await request.json()
         task_id = data.get("task_id", "easy")
-        env_instance.reset(task_id=task_id)
+        obs = env_instance.reset(task_id=task_id)
     except:
-        env_instance.reset()
-    return {"status": "success"}
+        obs = env_instance.reset()
+    return {"status": "success", "observation": obs}
 
 @app.post("/step")
 async def step(request: Request):
