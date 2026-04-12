@@ -20,7 +20,7 @@ def get_llm_action(client: OpenAI, model_name: str, observation: Dict) -> str:
     """
     Standard OpenAI Client call formatted for the LiteLLM Proxy.
     """
-    score = observation.get('health_score', 0.0)
+    score = observation.get('health_score', 0.35)
     goal = observation.get('goal', 'Clean the data.')
     
     prompt = f"Role: Data Quality Agent. Score: {score}. Goal: {goal}. Respond with only one word: drop_duplicates, drop_nulls, or fill_median."
@@ -94,8 +94,8 @@ def run_benchmark():
                 log_step(step=step, action=action_cmd, reward=reward, done=done, error=error)
                 
                 if done:
-                    health = obs.get('health_score', 0.0)
-                    success = (health >= 0.82)
+                    health = obs.get('health_score', 0.35)
+                    success = (health > 0.82)
                     break
                     
         except Exception as e:
